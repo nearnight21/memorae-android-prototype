@@ -1,0 +1,79 @@
+uniform float2 resolution;
+uniform float4 bodyRect;
+uniform float bodyRadius;
+uniform float lensCenterX;
+uniform float lensWidth;
+uniform float lensHeight;
+uniform float lensRadius;
+uniform float smokeOpacity;
+uniform float absorption;
+uniform float edgeStrength;
+uniform float highlightStrength;
+uniform float velocity;
+uniform float deformationStrength;
+
+float roundedRectSdf(float2 point, float2 halfSize, float radius) {
+    float2 q = abs(point) - halfSize + float2(radius);
+    return min(max(q.x, q.y), 0.0) + length(max(q, float2(0.0))) - radius;
+}
+
+float hash21(float2 p) {
+    p = fract(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+half4 main(float2 fragCoord) {
+    float2 bodyCenter = bodyRect.xy + bodyRect.zw * 0.5;
+    float2 bodyLocal = fragCoord - bodyCenter;
+    float speed = min(abs(velocity), 1.0);
+    float stretchX = 1.0 + speed * deformationStrength;
+    float stretchY = 1.0 - speed * deformationStrength * 0.42;
+    float2 lensLocal = fragCoord - float2(lensCenterX, bodyCenter.y);
+    lensLocal.x /= stretchX;
+    lensLocal.y /= stretchY;
+    float lensDistance = roundedRectSdf(
+        lensLocal,
+        float2(lensWidth * 0.5, lensHeight * 0.5),
+        lensRadius
+    );
+    float insideLens = 1.0 - smoothstep(-1.5, 1.5, lensDistance);
+    float bodyDistance = roundedRectSdf(bodyLocal, bodyRect.zw * 0.5, bodyRadius);
+    float insideBody = 1.0 - smoothstep(-1.25, 1.25, bodyDistance);
+    float insideComposite = max(insideBody, insideLens);
+    if (insideComposite <= 0.0) {
+        return half4(0.0);
+    }
+
+    float vertical = clamp((fragCoord.y - bodyRect.y) / max(bodyRect.w, 1.0), 0.0, 1.0);
+    float lensVertical = clamp((fragCoord.y - (bodyCenter.y - lensHeight * 0.5)) / max(lensHeight, 1.0), 0.0, 1.0);
+    float bodyEdge = (1.0 - smoothstep(0.0, 5.2, abs(bodyDistance))) * insideBody;
+    float lensEdge = (1.0 - smoothstep(0.0, 4.0, abs(lensDistance))) * insideLens;
+
+    float2 normalized = fragCoord / max(resolution, float2(1.0));
+    float coarse = hash21(floor(fragCoord / 34.0));
+    float smokeWave = sin(normalized.x * 21.0 + normalized.y * 13.0) * 0.5 + 0.5;
+    float smokeVariation = mix(smokeWave, coarse, 0.28);
+
+    float topGlow = insideBody * (1.0 - smoothstep(0.02, 0.35, vertical));
+    float lensTopGlow = insideLens * (1.0 - smoothstep(0.02, 0.34, lensVertical));
+    float bottomAbsorption = insideBody * smoothstep(0.50, 1.0, vertical);
+    float lensAbsorption = insideLens * smoothstep(0.48, 1.0, lensVertical);
+
+    float baseAlpha = smokeOpacity * mix(0.68, 1.05, vertical) * insideBody;
+    baseAlpha = max(baseAlpha, smokeOpacity * mix(0.80, 1.28, lensVertical) * insideLens);
+    baseAlpha *= mix(0.88, 1.08, smokeVariation);
+    baseAlpha += absorption * 0.18 * max(bottomAbsorption, lensAbsorption);
+
+    float highlight = highlightStrength * (bodyEdge * 0.42 + lensEdge * 0.68);
+    highlight += highlightStrength * (topGlow * 0.13 + lensTopGlow * 0.19);
+    float shadowRim = max(bodyEdge * smoothstep(0.46, 1.0, vertical), lensEdge * smoothstep(0.44, 1.0, lensVertical));
+
+    float3 smokeColor = mix(float3(0.105, 0.115, 0.108), float3(0.205, 0.215, 0.202), smokeVariation);
+    float3 edgeColor = float3(0.87, 0.85, 0.79);
+    float3 color = mix(smokeColor, edgeColor, clamp(highlight * edgeStrength, 0.0, 0.86));
+    color *= 1.0 - shadowRim * absorption * 0.54;
+
+    float alpha = clamp(baseAlpha + highlight * 0.24 + shadowRim * 0.12, 0.0, 0.58) * insideComposite;
+    return half4(color, alpha);
+}
