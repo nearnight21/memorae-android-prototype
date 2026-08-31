@@ -37,6 +37,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.amap.api.maps.MapsInitializer
 import com.amap.api.maps.TextureMapView
 import com.memorae.prototype.BuildConfig
+import com.memorae.prototype.map.MapEffectMode
 import com.memorae.prototype.map.PrototypeMap
 import com.memorae.prototype.timeline.SmokeCrystalShaderController
 import com.memorae.prototype.timeline.SmokeCrystalShaderLayer
@@ -64,10 +65,14 @@ class HomePrototypeActivity : ComponentActivity() {
 
         setContent {
             var privacyAccepted by rememberSaveable { mutableStateOf(false) }
+            val mapEffectMode = remember {
+                MapEffectMode.fromIntent(intent.getStringExtra(MapEffectModeExtra))
+            }
 
             if (privacyAccepted) {
                 HomePrototype(
                     restoredMapState = restoredMapState,
+                    mapEffectMode = mapEffectMode,
                     onMapCreated = { mapView ->
                         textureMapView = mapView
                         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
@@ -107,11 +112,16 @@ class HomePrototypeActivity : ComponentActivity() {
         textureMapView = null
         super.onDestroy()
     }
+
+    private companion object {
+        const val MapEffectModeExtra = "map_effect"
+    }
 }
 
 @Composable
 private fun HomePrototype(
     restoredMapState: Bundle?,
+    mapEffectMode: MapEffectMode,
     onMapCreated: (TextureMapView) -> Unit,
 ) {
     val spec = remember { SmokeCrystalSpec.Experimental }
@@ -129,6 +139,7 @@ private fun HomePrototype(
     ) {
         PrototypeMap(
             restoredState = restoredMapState,
+            effectMode = mapEffectMode,
             onMapCreated = onMapCreated,
             modifier = Modifier.fillMaxSize(),
         )

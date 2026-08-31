@@ -15,6 +15,7 @@ import com.memorae.prototype.memory.FakeMemoryMarker
 @Composable
 fun PrototypeMap(
     restoredState: Bundle?,
+    effectMode: MapEffectMode,
     onMapCreated: (TextureMapView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -23,10 +24,13 @@ fun PrototypeMap(
         factory = { context ->
             MapsInitializer.loadWorldVectorMap(true)
 
-            TextureMapView(context).apply {
+            val mapView = TextureMapView(context).apply {
                 onCreate(restoredState)
                 configurePrototypeMap(map)
                 onMapCreated(this)
+            }
+            MapEffectContainer(context, effectMode).apply {
+                attachMap(mapView)
             }
         },
     )
