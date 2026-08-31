@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.memorae.prototype.map.BackdropGeometry
+import com.memorae.prototype.map.BackdropSofteningController
 import kotlin.math.abs
 
 @Composable
@@ -35,6 +37,8 @@ fun SmokeCrystalTimeline(
     state: TimelineState,
     spec: SmokeCrystalSpec,
     shaderController: SmokeCrystalShaderController,
+    softeningController: BackdropSofteningController,
+    showLegacyMaterial: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -53,6 +57,19 @@ fun SmokeCrystalTimeline(
 
     SideEffect {
         if (measuredSize.width > 0 && measuredSize.height > 0) {
+            softeningController.updateGeometry(
+                BackdropGeometry(
+                    bodyLeftInWindow = originInWindow.x,
+                    bodyTopInWindow = originInWindow.y + bodyTopLocal,
+                    bodyWidth = measuredSize.width.toFloat(),
+                    bodyHeight = bodyHeightPx,
+                    bodyRadius = radiusPx,
+                    lensCenterInWindow = originInWindow.x + lensCenterLocal,
+                    lensWidth = lensWidthPx,
+                    lensHeight = lensHeightPx,
+                    lensRadius = lensRadiusPx,
+                ),
+            )
             shaderController.updateGeometry(
                 bodyLeftInWindow = originInWindow.x,
                 bodyTopInWindow = originInWindow.y + bodyTopLocal,
@@ -86,68 +103,70 @@ fun SmokeCrystalTimeline(
         val lensLeft = lensCenter - lensWidthPx * 0.5f
         val lensTop = (size.height - lensHeightPx) * 0.5f
 
-        drawRoundRect(
-            color = Color(0x2B090A09),
-            topLeft = Offset(0f, bodyTop + 5.dp.toPx()),
-            size = Size(size.width, bodyHeightPx),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(radiusPx),
-        )
-        drawRoundRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(
-                    Color(0x2DF4F1E7),
-                    Color(0x0CF4F1E7),
-                    Color(0x26141614),
+        if (showLegacyMaterial) {
+            drawRoundRect(
+                color = Color(0x2B090A09),
+                topLeft = Offset(0f, bodyTop + 5.dp.toPx()),
+                size = Size(size.width, bodyHeightPx),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(radiusPx),
+            )
+            drawRoundRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0x2DF4F1E7),
+                        Color(0x0CF4F1E7),
+                        Color(0x26141614),
+                    ),
+                    startY = bodyTop,
+                    endY = bodyTop + bodyHeightPx,
                 ),
-                startY = bodyTop,
-                endY = bodyTop + bodyHeightPx,
-            ),
-            topLeft = Offset(bodyRect.left, bodyRect.top),
-            size = bodyRect.size,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(radiusPx),
-        )
-        drawRoundRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color(0x70F2EEE4), Color(0x18E3DFD6), Color(0x6020221F)),
-                startY = bodyTop,
-                endY = bodyTop + bodyHeightPx,
-            ),
-            topLeft = Offset(bodyRect.left + 0.75.dp.toPx(), bodyRect.top + 0.75.dp.toPx()),
-            size = Size(bodyRect.width - 1.5.dp.toPx(), bodyRect.height - 1.5.dp.toPx()),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(radiusPx),
-            style = Stroke(width = 1.dp.toPx()),
-        )
+                topLeft = Offset(bodyRect.left, bodyRect.top),
+                size = bodyRect.size,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(radiusPx),
+            )
+            drawRoundRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0x70F2EEE4), Color(0x18E3DFD6), Color(0x6020221F)),
+                    startY = bodyTop,
+                    endY = bodyTop + bodyHeightPx,
+                ),
+                topLeft = Offset(bodyRect.left + 0.75.dp.toPx(), bodyRect.top + 0.75.dp.toPx()),
+                size = Size(bodyRect.width - 1.5.dp.toPx(), bodyRect.height - 1.5.dp.toPx()),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(radiusPx),
+                style = Stroke(width = 1.dp.toPx()),
+            )
 
-        drawRoundRect(
-            color = Color(0x2E10110F),
-            topLeft = Offset(lensLeft, lensTop + 4.dp.toPx()),
-            size = Size(lensWidthPx, lensHeightPx),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(lensRadiusPx),
-        )
-        drawRoundRect(
-            brush = Brush.verticalGradient(
-                0.0f to Color(0x4CF5F0E5),
-                0.22f to Color(0x1EF4EFE5),
-                0.72f to Color(0x16191B18),
-                1.0f to Color(0x4B111210),
-                startY = lensTop,
-                endY = lensTop + lensHeightPx,
-            ),
-            topLeft = Offset(lensLeft, lensTop),
-            size = Size(lensWidthPx, lensHeightPx),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(lensRadiusPx),
-        )
-        drawRoundRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color(0xA9FFF9EC), Color(0x32E4E0D7), Color(0x7A242623)),
-                startY = lensTop,
-                endY = lensTop + lensHeightPx,
-            ),
-            topLeft = Offset(lensLeft + 0.7.dp.toPx(), lensTop + 0.7.dp.toPx()),
-            size = Size(lensWidthPx - 1.4.dp.toPx(), lensHeightPx - 1.4.dp.toPx()),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(lensRadiusPx),
-            style = Stroke(width = 1.1.dp.toPx()),
-        )
+            drawRoundRect(
+                color = Color(0x2E10110F),
+                topLeft = Offset(lensLeft, lensTop + 4.dp.toPx()),
+                size = Size(lensWidthPx, lensHeightPx),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(lensRadiusPx),
+            )
+            drawRoundRect(
+                brush = Brush.verticalGradient(
+                    0.0f to Color(0x4CF5F0E5),
+                    0.22f to Color(0x1EF4EFE5),
+                    0.72f to Color(0x16191B18),
+                    1.0f to Color(0x4B111210),
+                    startY = lensTop,
+                    endY = lensTop + lensHeightPx,
+                ),
+                topLeft = Offset(lensLeft, lensTop),
+                size = Size(lensWidthPx, lensHeightPx),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(lensRadiusPx),
+            )
+            drawRoundRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xA9FFF9EC), Color(0x32E4E0D7), Color(0x7A242623)),
+                    startY = lensTop,
+                    endY = lensTop + lensHeightPx,
+                ),
+                topLeft = Offset(lensLeft + 0.7.dp.toPx(), lensTop + 0.7.dp.toPx()),
+                size = Size(lensWidthPx - 1.4.dp.toPx(), lensHeightPx - 1.4.dp.toPx()),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(lensRadiusPx),
+                style = Stroke(width = 1.1.dp.toPx()),
+            )
+        }
 
         val yearBaseline = bodyTop + bodyHeightPx * 0.43f
         val tickTop = bodyTop + bodyHeightPx * 0.70f

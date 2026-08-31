@@ -16,6 +16,7 @@ import com.memorae.prototype.memory.FakeMemoryMarker
 fun PrototypeMap(
     restoredState: Bundle?,
     effectMode: MapEffectMode,
+    softeningController: BackdropSofteningController,
     onMapCreated: (TextureMapView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -29,9 +30,12 @@ fun PrototypeMap(
                 configurePrototypeMap(map)
                 onMapCreated(this)
             }
-            MapEffectContainer(context, effectMode).apply {
+            MapEffectContainer(context, effectMode, softeningController).apply {
                 attachMap(mapView)
             }
+        },
+        update = { container ->
+            container.updateMode(effectMode)
         },
     )
 }

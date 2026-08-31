@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,6 +38,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.amap.api.maps.MapsInitializer
 import com.amap.api.maps.TextureMapView
 import com.memorae.prototype.BuildConfig
+import com.memorae.prototype.map.BackdropSofteningController
 import com.memorae.prototype.map.MapEffectMode
 import com.memorae.prototype.map.PrototypeMap
 import com.memorae.prototype.timeline.SmokeCrystalShaderController
@@ -65,14 +67,19 @@ class HomePrototypeActivity : ComponentActivity() {
 
         setContent {
             var privacyAccepted by rememberSaveable { mutableStateOf(false) }
-            val mapEffectMode = remember {
-                MapEffectMode.fromIntent(intent.getStringExtra(MapEffectModeExtra))
+            var mapEffectMode by remember {
+                mutableStateOf(MapEffectMode.fromIntent(intent.getStringExtra(MapEffectModeExtra)))
+            }
+            val showMapEffectControls = remember {
+                intent.getBooleanExtra(MapEffectControlsExtra, true)
             }
 
             if (privacyAccepted) {
                 HomePrototype(
                     restoredMapState = restoredMapState,
                     mapEffectMode = mapEffectMode,
+                    showMapEffectControls = showMapEffectControls,
+                    onMapEffectModeChange = { mapEffectMode = it },
                     onMapCreated = { mapView ->
                         textureMapView = mapView
                         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
@@ -115,6 +122,7 @@ class HomePrototypeActivity : ComponentActivity() {
 
     private companion object {
         const val MapEffectModeExtra = "map_effect"
+        const val MapEffectControlsExtra = "map_effect_controls"
     }
 }
 
@@ -122,10 +130,13 @@ class HomePrototypeActivity : ComponentActivity() {
 private fun HomePrototype(
     restoredMapState: Bundle?,
     mapEffectMode: MapEffectMode,
+    showMapEffectControls: Boolean,
+    onMapEffectModeChange: (MapEffectMode) -> Unit,
     onMapCreated: (TextureMapView) -> Unit,
 ) {
     val spec = remember { SmokeCrystalSpec.Experimental }
     val shaderController = remember { SmokeCrystalShaderController(spec) }
+    val softeningController = remember { BackdropSofteningController() }
     val timelineState = rememberTimelineState(initialYear = 2024, spec = spec)
 
     DisposableEffect(shaderController) {
@@ -140,21 +151,37 @@ private fun HomePrototype(
         PrototypeMap(
             restoredState = restoredMapState,
             effectMode = mapEffectMode,
+            softeningController = softeningController,
             onMapCreated = onMapCreated,
             modifier = Modifier.fillMaxSize(),
         )
 
         MapAtmosphere(modifier = Modifier.fillMaxSize())
-        SmokeCrystalShaderLayer(
-            controller = shaderController,
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (!mapEffectMode.isPassOneDiagnostic) {
+            SmokeCrystalShaderLayer(
+                controller = shaderController,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         HomeChrome(amapKeyPresent = BuildConfig.AMAP_KEY_PRESENT)
+
+        if (showMapEffectControls && mapEffectMode.isVisualCandidate) {
+            BackdropSofteningDebugControls(
+                selectedMode = mapEffectMode,
+                onModeSelected = onMapEffectModeChange,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .systemBarsPadding()
+                    .padding(top = 72.dp),
+            )
+        }
 
         SmokeCrystalTimeline(
             state = timelineState,
             spec = spec,
             shaderController = shaderController,
+            softeningController = softeningController,
+            showLegacyMaterial = !mapEffectMode.isPassOneDiagnostic,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -162,6 +189,36 @@ private fun HomePrototype(
                 .padding(horizontal = spec.horizontalInset)
                 .padding(bottom = spec.bottomSpacing),
         )
+    }
+}
+
+@Composable
+private fun BackdropSofteningDebugControls(
+    selectedMode: MapEffectMode,
+    onModeSelected: (MapEffectMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.background(Color(0xC0181A17), RoundedCornerShape(4.dp)),
+    ) {
+        MapEffectMode.visualCandidates.forEach { mode ->
+            BasicText(
+                text = mode.intentValue.uppercase(),
+                modifier = Modifier
+                    .clickable { onModeSelected(mode) }
+                    .background(
+                        color = if (mode == selectedMode) Color(0xFFE4E1D8) else Color.Transparent,
+                        shape = RoundedCornerShape(3.dp),
+                    )
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                style = TextStyle(
+                    color = if (mode == selectedMode) Color(0xFF1F211E) else Color(0xFFD7D4CC),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = FontFamily.Monospace,
+                ),
+            )
+        }
     }
 }
 
